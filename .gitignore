@@ -40,3 +40,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Prisma agent skills
+backend/.agents/
+backend/.claude/
+backend/.windsurf/
+backend/skills-lock.json

@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rh-entrevistas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rh_entrevistas
+      POSTGRES_USER: rh
+      POSTGRES_PASSWORD: rh_dev_123
+    ports:
+      - "5435:5432"
+    volumes:
+      - rh_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rh -d rh_entrevistas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  rh_postgres_data:

@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Status {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  isActive   Boolean     @default(true)
+  candidates Candidate[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Store {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  isActive   Boolean     @default(true)
+  candidates Candidate[]
+  vacancies  Vacancy[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model Vacancy {
+  id          Int       @id @default(autoincrement())
+  name        String
+  quantity    Int       @default(1)
+  openingDate DateTime?
+  notes       String?
+  isActive    Boolean   @default(true)
+
+  storeId Int?
+  store   Store? @relation(fields: [storeId], references: [id])
+
+  candidates Candidate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Candidate {
+  id              Int       @id @default(autoincrement())
+  name            String
+  cpf             String    @unique
+  phone           String?
+  interviewDate   DateTime
+  sentToStoreDate DateTime?
+  testDate        DateTime?
+  notes           String?
+
+  statusId Int?
+  status   Status? @relation(fields: [statusId], references: [id])
+
+  storeId Int?
+  store   Store? @relation(fields: [storeId], references: [id])
+
+  vacancyId Int?
+  vacancy   Vacancy? @relation(fields: [vacancyId], references: [id])
+
+  history CandidateHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CandidateHistory {
+  id          Int     @id @default(autoincrement())
+  action      String
+  description String?
+
+  candidateId Int
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
