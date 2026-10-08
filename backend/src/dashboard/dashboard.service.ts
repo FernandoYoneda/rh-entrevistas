@@ -65,6 +65,62 @@ export class DashboardService {
         candidate.sentToStoreDate !== null && candidate.testDate === null,
     ).length;
 
+    const todayParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date());
+    const datePart = (type: string) =>
+      todayParts.find((part) => part.type === type)!.value;
+    const today =
+      datePart('year') + '-' + datePart('month') + '-' + datePart('day');
+    const limitDate = new Date(today + 'T00:00:00.000Z');
+    limitDate.setUTCDate(limitDate.getUTCDate() + 7);
+    const next7DaysEnd = limitDate.toISOString().slice(0, 10);
+
+    const testsToday = candidates.filter(
+      (candidate) => candidate.testDate?.toISOString().slice(0, 10) === today,
+    ).length;
+    const testsNext7Days = candidates.filter((candidate) => {
+      const testDay = candidate.testDate?.toISOString().slice(0, 10);
+      return (
+        testDay !== undefined && testDay > today && testDay <= next7DaysEnd
+      );
+    }).length;
+    const withoutTestDate = candidates.filter(
+      (candidate) => candidate.testDate === null,
+    ).length;
+    const withoutStore = candidates.filter(
+      (candidate) => candidate.store?.isActive !== true,
+    ).length;
+    const withoutVacancy = candidates.filter(
+      (candidate) => candidate.vacancy?.isActive !== true,
+    ).length;
+
+    const upcomingTests = candidates
+      .filter((candidate) => {
+        const testDay = candidate.testDate?.toISOString().slice(0, 10);
+        return (
+          testDay !== undefined && testDay >= today && testDay <= next7DaysEnd
+        );
+      })
+      .map((candidate) => ({
+        id: candidate.id,
+        name: candidate.name,
+        testDate: candidate.testDate!.toISOString().slice(0, 10),
+        storeName: candidate.store?.isActive ? candidate.store.name : null,
+        vacancyName: candidate.vacancy?.isActive
+          ? candidate.vacancy.name
+          : null,
+      }))
+      .sort(
+        (a, b) =>
+          a.testDate.localeCompare(b.testDate) ||
+          a.name.localeCompare(b.name, 'pt-BR') ||
+          a.id - b.id,
+      );
+
     const statusMap = new Map<
       number,
       {
@@ -164,8 +220,15 @@ export class DashboardService {
         sentToStore,
         testedCandidates,
         waitingForTest,
+        testsToday,
+        testsNext7Days,
+        withoutTestDate,
+        withoutStore,
+        withoutVacancy,
       },
 
+      referenceDates: { today, next7DaysEnd, timezone: 'America/Sao_Paulo' },
+      upcomingTests,
       byStatus,
       byStore,
       byVacancy,

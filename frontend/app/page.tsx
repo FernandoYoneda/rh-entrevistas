@@ -30,11 +30,100 @@ type DashboardData = {
     sentToStore: number;
     testedCandidates: number;
     waitingForTest: number;
+    testsToday: number;
+    testsNext7Days: number;
+    withoutTestDate: number;
+    withoutStore: number;
+    withoutVacancy: number;
   };
+  referenceDates: { today: string; next7DaysEnd: string; timezone: string };
+  upcomingTests: {
+    id: number;
+    name: string;
+    testDate: string;
+    storeName: string | null;
+    vacancyName: string | null;
+  }[];
   byStatus: Group[];
   byStore: Group[];
   byVacancy: Group[];
 };
+
+function dashboardPeriodQuery(period: "all" | "month", now = new Date()) {
+  if (period === "all") return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const year = parts.find((part) => part.type === "year")!.value;
+  const month = parts.find((part) => part.type === "month")!.value;
+  const startDate = year + "-" + month + "-01";
+  const endDate = new Date(Date.UTC(Number(year), Number(month), 0))
+    .toISOString()
+    .slice(0, 10);
+  return "?" + new URLSearchParams({ startDate, endDate }).toString();
+}
+
+function dashboardGroups(groups: Group[], missing: number, label: string) {
+  return [
+    ...groups,
+    ...(missing > 0 ? [{ id: 0, name: label, total: missing }] : []),
+  ].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "pt-BR"));
+}
+
+function DistributionBars({
+  title,
+  groups,
+  total,
+}: {
+  title: string;
+  groups: Group[];
+  total: number;
+}) {
+  return (
+    <section aria-label={title}>
+      <h3 className="text-base font-semibold">{title}</h3>
+      {groups.length === 0 ? (
+        <p className="mt-5 text-sm text-slate-500">
+          Nenhum candidato no período.
+        </p>
+      ) : (
+        <ul className="mt-5 space-y-5">
+          {groups.map((group) => (
+            <li key={group.id}>
+              <div className="mb-2 flex items-start justify-between gap-4 text-sm">
+                <span className="break-words text-slate-600">{group.name}</span>
+                <span className="shrink-0 font-semibold tabular-nums text-[#005260]">
+                  {group.total}
+                </span>
+              </div>
+              <div
+                aria-hidden="true"
+                className="h-2.5 overflow-hidden rounded-full bg-[#eaf1f1]"
+              >
+                <div
+                  className={
+                    group.id === 0
+                      ? "h-full rounded-full bg-[#e66b4e]"
+                      : "h-full rounded-full bg-[#005260]"
+                  }
+                  style={{
+                    width:
+                      (total > 0
+                        ? Math.min(100, (group.total / total) * 100)
+                        : 0) + "%",
+                  }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 function Dashboard({
   user,
@@ -49,6 +138,7 @@ function Dashboard({
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  const [period, setPeriod] = useState<"all" | "month">("all");
   const [view, setView] = useState<
     "dashboard" | "candidates" | "status" | "stores" | "vacancies"
   >("dashboard");
@@ -59,10 +149,23 @@ function Dashboard({
 
     async function load() {
       try {
-        const result = await apiFetch<DashboardData>("/dashboard", {
-          token,
-          signal: controller.signal,
-        });
+        const result = await apiFetch<DashboardData>(
+          "/dashboard" + dashboardPeriodQuery(period),
+          {
+            token,
+            signal: controller.signal,
+          },
+        );
+        if (
+          !Array.isArray(result.upcomingTests) ||
+          typeof result.summary.testsToday !== "number" ||
+          typeof result.summary.testsNext7Days !== "number" ||
+          typeof result.summary.withoutTestDate !== "number"
+        ) {
+          throw new Error(
+            "Atualize o arquivo do dashboard no backend e reinicie o servidor para carregar os novos indicadores.",
+          );
+        }
         if (!cancelled) setData(result);
       } catch (err) {
         if (cancelled) return;
@@ -84,7 +187,7 @@ function Dashboard({
       cancelled = true;
       controller.abort();
     };
-  }, [token, revision, onLogout]);
+  }, [token, revision, onLogout, period]);
 
   function refresh() {
     setError("");
@@ -94,12 +197,14 @@ function Dashboard({
 
   const metrics = data
     ? ([
-        ["Total de candidatos", data.summary.totalCandidates],
-        ["Com status ativo", data.summary.withStatus],
-        ["Sem status ativo", data.summary.withoutStatus],
-        ["Encaminhados para loja", data.summary.sentToStore],
-        ["Teste realizado", data.summary.testedCandidates],
-        ["Aguardando teste", data.summary.waitingForTest],
+        ["Candidatos", data.summary.totalCandidates, "No período selecionado"],
+        ["Testes hoje", data.summary.testsToday, "Data marcada para hoje"],
+        ["Próximos 7 dias", data.summary.testsNext7Days, "A partir de amanhã"],
+        [
+          "Sem data de teste",
+          data.summary.withoutTestDate,
+          "Data ainda não informada",
+        ],
       ] as const)
     : [];
 
@@ -176,9 +281,11 @@ function Dashboard({
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#005260]">
                 Portal Casa Bella
               </p>
-              <h1 className="mt-2 text-3xl font-semibold">Visão geral</h1>
+              <h1 className="mt-2 text-3xl font-semibold">
+                Panorama da seleção
+              </h1>
               <p className="mt-2 text-sm text-slate-500">
-                Acompanhe os números do processo seletivo.
+                Distribuição dos candidatos e agenda de testes.
               </p>
             </div>
             <button
@@ -190,7 +297,40 @@ function Dashboard({
               {busy ? "Carregando..." : "Atualizar dados"}
             </button>
           </header>
-          <div role="status" className="mt-6 text-sm text-slate-600">
+          <div className="mt-7 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <label htmlFor="dashboard-period" className="text-sm font-medium">
+                Período das entrevistas
+              </label>
+              <select
+                id="dashboard-period"
+                value={period}
+                onChange={(event) => {
+                  setPeriod(event.target.value as "all" | "month");
+                  setData(null);
+                  setError("");
+                  setBusy(true);
+                }}
+                disabled={busy}
+                className="mt-2 block rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#005260] focus:ring-2 focus:ring-[#005260]/15 disabled:opacity-60"
+              >
+                <option value="all">Todos os períodos</option>
+                <option value="month">Este mês</option>
+              </select>
+            </div>
+            {data && (
+              <p className="text-xs text-slate-500">
+                Hoje: {formatInterviewDate(data.referenceDates.today)} · Horário
+                de Brasília
+              </p>
+            )}
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Todos os indicadores e gráficos consideram os candidatos
+            entrevistados no período selecionado. As datas de teste representam
+            agendamentos.
+          </p>
+          <div role="status" className="mt-4 text-sm text-slate-600">
             {busy ? "Buscando indicadores..." : ""}
           </div>
           {error && (
@@ -208,34 +348,145 @@ function Dashboard({
             <>
               <section
                 aria-label="Indicadores"
-                className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                className="mt-4 grid gap-4 sm:grid-cols-2 2xl:grid-cols-4"
               >
-                {metrics.map(([label, value], index) => (
+                {metrics.map(([label, value, context], index) => (
                   <article
                     key={label}
-                    className="rounded-2xl border border-[#005260]/10 bg-white p-6 shadow-sm"
+                    className={
+                      "rounded-2xl border border-[#005260]/10 bg-white p-6 shadow-sm " +
+                      (index === 1 ? "border-t-[3px] border-t-[#e66b4e]" : "")
+                    }
                   >
-                    <div
-                      className={
-                        index === 0
-                          ? "mb-4 h-1 w-9 rounded bg-[#e66b4e]"
-                          : "mb-4 h-1 w-9 rounded bg-[#005260]/30"
-                      }
-                    />
-                    <p className="text-sm text-slate-500">{label}</p>
-                    <p className="mt-3 text-4xl font-semibold tabular-nums text-[#005260]">
+                    <p className="text-sm font-medium text-slate-600">
+                      {label}
+                    </p>
+                    <p className="mt-4 text-4xl font-semibold tabular-nums text-[#005260]">
                       {value}
                     </p>
+                    <p className="mt-3 text-xs text-slate-500">{context}</p>
                   </article>
                 ))}
               </section>
               <section
                 aria-label="Distribuição dos candidatos"
-                className="mt-7 grid gap-5 xl:grid-cols-3"
+                className="mt-7 rounded-2xl border border-[#005260]/10 bg-white p-6 shadow-sm sm:p-8"
               >
-                <GroupList title="Por status" groups={data.byStatus} />
-                <GroupList title="Por loja" groups={data.byStore} />
-                <GroupList title="Por vaga" groups={data.byVacancy} />
+                <h2 className="text-lg font-semibold">
+                  Candidatos no processo seletivo
+                </h2>
+                <p className="mt-2 text-sm text-slate-500">
+                  Os números das barras indicam candidatos.
+                </p>
+                <div className="mt-7 grid gap-8 xl:grid-cols-3">
+                  <DistributionBars
+                    title="Por status"
+                    groups={dashboardGroups(
+                      data.byStatus,
+                      data.summary.withoutStatus,
+                      "Sem status ativo",
+                    )}
+                    total={data.summary.totalCandidates}
+                  />
+                  <DistributionBars
+                    title="Por loja"
+                    groups={dashboardGroups(
+                      data.byStore,
+                      data.summary.withoutStore,
+                      "Sem loja ativa",
+                    )}
+                    total={data.summary.totalCandidates}
+                  />
+                  <DistributionBars
+                    title="Por vaga"
+                    groups={dashboardGroups(
+                      data.byVacancy,
+                      data.summary.withoutVacancy,
+                      "Sem vaga ativa",
+                    )}
+                    total={data.summary.totalCandidates}
+                  />
+                </div>
+              </section>
+              <section
+                aria-label="Agenda de testes"
+                className="mt-7 rounded-2xl border border-[#005260]/10 bg-white p-6 shadow-sm sm:p-8"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-semibold">Agenda de testes</h2>
+                    <p className="mt-2 text-sm text-slate-500">
+                      De hoje até{" "}
+                      {formatInterviewDate(data.referenceDates.next7DaysEnd)}.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setView("candidates")}
+                    className="rounded-xl border border-[#005260]/25 px-4 py-2.5 text-sm font-semibold text-[#005260] hover:bg-[#eaf4f1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#005260]"
+                  >
+                    Ver candidatos
+                  </button>
+                </div>
+                {data.upcomingTests.length === 0 ? (
+                  <p className="mt-6 text-sm text-slate-500">
+                    Nenhum teste agendado nesse intervalo para os candidatos
+                    selecionados.
+                  </p>
+                ) : (
+                  <div
+                    role="region"
+                    aria-label="Testes agendados"
+                    tabIndex={0}
+                    className="mt-6 overflow-x-auto focus-visible:outline-2 focus-visible:outline-[#005260]"
+                  >
+                    <table className="w-full min-w-[480px] text-left text-sm">
+                      <caption className="sr-only">
+                        Testes de hoje e dos próximos sete dias
+                      </caption>
+                      <thead className="text-slate-500">
+                        <tr>
+                          {["Data", "Candidato", "Loja", "Vaga"].map(
+                            (label) => (
+                              <th
+                                key={label}
+                                scope="col"
+                                className="px-3 py-3 font-medium"
+                              >
+                                {label}
+                              </th>
+                            ),
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {data.upcomingTests.map((test) => (
+                          <tr key={test.id} className="hover:bg-slate-50">
+                            <td className="whitespace-nowrap px-3 py-4">
+                              <span className="font-semibold tabular-nums text-[#005260]">
+                                {formatInterviewDate(test.testDate)}
+                              </span>
+                              {test.testDate === data.referenceDates.today && (
+                                <span className="ml-2 rounded-full bg-[#fff0e9] px-2 py-1 text-xs font-medium text-[#a34027]">
+                                  Hoje
+                                </span>
+                              )}
+                            </td>
+                            <th scope="row" className="px-3 py-4 font-medium">
+                              {test.name}
+                            </th>
+                            <td className="px-3 py-4 text-slate-600">
+                              {test.storeName ?? "Sem loja ativa"}
+                            </td>
+                            <td className="px-3 py-4 text-slate-600">
+                              {test.vacancyName ?? "Sem vaga ativa"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </section>
             </>
           )}
@@ -2540,33 +2791,6 @@ function CandidateForm({
         Grupo Casa Bella · Recursos Humanos
       </footer>
     </main>
-  );
-}
-
-function GroupList({ title, groups }: { title: string; groups: Group[] }) {
-  return (
-    <article className="rounded-2xl border border-[#005260]/10 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold">{title}</h2>
-      {groups.length === 0 ? (
-        <p className="mt-5 text-sm text-slate-500">
-          Nenhum candidato vinculado.
-        </p>
-      ) : (
-        <ul className="mt-4 divide-y divide-slate-100">
-          {groups.map((group) => (
-            <li
-              key={group.id}
-              className="flex items-center justify-between gap-3 py-3 text-sm"
-            >
-              <span className="break-words">{group.name}</span>
-              <span className="shrink-0 rounded-lg bg-[#eaf4f1] px-3 py-1 font-semibold tabular-nums text-[#005260]">
-                {group.total}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </article>
   );
 }
 
