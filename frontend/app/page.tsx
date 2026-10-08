@@ -139,6 +139,9 @@ function Dashboard({
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [period, setPeriod] = useState<"all" | "month">("all");
+  const [agendaCandidateId, setAgendaCandidateId] = useState<number | null>(
+    null,
+  );
   const [view, setView] = useState<
     "dashboard" | "candidates" | "status" | "stores" | "vacancies"
   >("dashboard");
@@ -237,7 +240,10 @@ function Dashboard({
             <button
               key={key}
               type="button"
-              onClick={() => setView(key)}
+              onClick={() => {
+                setAgendaCandidateId(null);
+                setView(key);
+              }}
               aria-current={view === key ? "page" : undefined}
               className={
                 "block w-full rounded-xl border-l-4 px-4 py-3 text-left font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white " +
@@ -263,7 +269,12 @@ function Dashboard({
         </div>
       </aside>
       {view === "candidates" ? (
-        <Candidates token={token} onLogout={onLogout} onCreated={refresh} />
+        <Candidates
+          token={token}
+          onLogout={onLogout}
+          onCreated={refresh}
+          initialEditingId={agendaCandidateId}
+        />
       ) : view === "status" ? (
         <StatusManager token={token} onLogout={onLogout} onChanged={refresh} />
       ) : view === "stores" ? (
@@ -473,7 +484,17 @@ function Dashboard({
                               )}
                             </td>
                             <th scope="row" className="px-3 py-4 font-medium">
-                              {test.name}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAgendaCandidateId(test.id);
+                                  setView("candidates");
+                                }}
+                                aria-label={"Editar candidato " + test.name}
+                                className="rounded-sm text-left font-semibold text-[#005260] underline decoration-[#005260]/40 underline-offset-4 transition hover:text-[#003e49] hover:decoration-[#005260] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#005260]"
+                              >
+                                {test.name}
+                              </button>
                             </th>
                             <td className="px-3 py-4 text-slate-600">
                               {test.storeName ?? "Sem loja ativa"}
@@ -1635,13 +1656,15 @@ function Candidates({
   token,
   onLogout,
   onCreated,
+  initialEditingId = null,
 }: {
   token: string;
   onLogout: () => void;
   onCreated: () => void;
+  initialEditingId?: number | null;
 }) {
   const [creating, setCreating] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(initialEditingId);
   const [historyCandidate, setHistoryCandidate] = useState<Candidate | null>(
     null,
   );
