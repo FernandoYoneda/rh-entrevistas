@@ -45,11 +45,11 @@ export class DashboardService {
     const totalCandidates = candidates.length;
 
     const withStatus = candidates.filter(
-      (candidate) => candidate.statusId !== null,
+      (candidate) => candidate.status?.isActive === true,
     ).length;
 
     const withoutStatus = candidates.filter(
-      (candidate) => candidate.statusId === null,
+      (candidate) => candidate.status?.isActive !== true,
     ).length;
 
     const sentToStore = candidates.filter(
@@ -93,7 +93,7 @@ export class DashboardService {
     >();
 
     for (const candidate of candidates) {
-      if (candidate.status) {
+      if (candidate.status?.isActive) {
         const currentStatus = statusMap.get(candidate.status.id);
 
         if (currentStatus) {
@@ -107,7 +107,7 @@ export class DashboardService {
         }
       }
 
-      if (candidate.store) {
+      if (candidate.store?.isActive) {
         const currentStore = storeMap.get(candidate.store.id);
 
         if (currentStore) {
@@ -121,7 +121,7 @@ export class DashboardService {
         }
       }
 
-      if (candidate.vacancy) {
+      if (candidate.vacancy?.isActive) {
         const currentVacancy = vacancyMap.get(candidate.vacancy.id);
 
         if (currentVacancy) {

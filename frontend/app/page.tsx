@@ -95,8 +95,8 @@ function Dashboard({
   const metrics = data
     ? ([
         ["Total de candidatos", data.summary.totalCandidates],
-        ["Com status definido", data.summary.withStatus],
-        ["Sem status", data.summary.withoutStatus],
+        ["Com status ativo", data.summary.withStatus],
+        ["Sem status ativo", data.summary.withoutStatus],
         ["Encaminhados para loja", data.summary.sentToStore],
         ["Teste realizado", data.summary.testedCandidates],
         ["Aguardando teste", data.summary.waitingForTest],
@@ -497,8 +497,8 @@ function StatusManager({
             Inativar o status {pendingInactive.name}?
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Ele deixará de aparecer nas opções de seleção. Os candidatos que já
-            usam esse status manterão o vínculo.
+            Ele deixará de aparecer nas opções de seleção e nos dados atuais dos
+            candidatos. Os vínculos anteriores serão preservados.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button
@@ -857,8 +857,8 @@ function StoresManager({
             Inativar a loja {pendingInactive.name}?
           </h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Ela deixará de aparecer nas opções de seleção. Os candidatos e vagas
-            que já usam essa loja manterão o vínculo.
+            Ela deixará de aparecer nas opções de seleção e nos dados atuais dos
+            candidatos. Os vínculos anteriores serão preservados.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <button
@@ -972,10 +972,17 @@ type Candidate = {
   sentToStoreDate: string | null;
   testDate: string | null;
   notes: string | null;
-  status: { id: number; name: string } | null;
-  store: { id: number; name: string } | null;
-  vacancy: { id: number; name: string } | null;
+  status: { id: number; name: string; isActive: boolean } | null;
+  store: { id: number; name: string; isActive: boolean } | null;
+  vacancy: { id: number; name: string; isActive: boolean } | null;
 };
+
+function activeRelationName(
+  relation: { name: string; isActive: boolean } | null,
+  fallback: string,
+) {
+  return relation?.isActive ? relation.name : fallback;
+}
 
 function formatCpf(value: string) {
   const digits = value.replace(/\D/g, "");
@@ -1446,14 +1453,17 @@ function Candidates({
                     </td>
                     <td className="px-5 py-4">
                       <span className="inline-block rounded-lg bg-[#eaf4f1] px-3 py-1 text-xs font-medium text-[#005260]">
-                        {candidate.status?.name ?? "Sem status"}
+                        {activeRelationName(
+                          candidate.status,
+                          "Sem status ativo",
+                        )}
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      {candidate.store?.name ?? "Sem loja"}
+                      {activeRelationName(candidate.store, "Sem loja ativa")}
                     </td>
                     <td className="px-5 py-4">
-                      {candidate.vacancy?.name ?? "Sem vaga"}
+                      {activeRelationName(candidate.vacancy, "Sem vaga ativa")}
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex gap-2">
@@ -1632,9 +1642,12 @@ function CandidateHistory({
           {(
             [
               ["CPF", formatCpf(current.cpf)],
-              ["Status", current.status?.name ?? "Sem status"],
-              ["Loja", current.store?.name ?? "Sem loja"],
-              ["Vaga", current.vacancy?.name ?? "Sem vaga"],
+              [
+                "Status",
+                activeRelationName(current.status, "Sem status ativo"),
+              ],
+              ["Loja", activeRelationName(current.store, "Sem loja ativa")],
+              ["Vaga", activeRelationName(current.vacancy, "Sem vaga ativa")],
               ["Entrevista", formatInterviewDate(current.interviewDate)],
               [
                 "Data do teste",
@@ -1831,30 +1844,21 @@ function CandidateForm({
               cpf: formatCpf(existing.cpf),
               phone: existing.phone ?? "",
               interviewDate: existing.interviewDate.slice(0, 10),
-              statusId: existing.status ? String(existing.status.id) : "",
-              storeId: existing.store ? String(existing.store.id) : "",
-              vacancyId: existing.vacancy ? String(existing.vacancy.id) : "",
+              statusId: existing.status?.isActive
+                ? String(existing.status.id)
+                : "",
+              storeId: existing.store?.isActive
+                ? String(existing.store.id)
+                : "",
+              vacancyId: existing.vacancy?.isActive
+                ? String(existing.vacancy.id)
+                : "",
               sentToStoreDate: existing.sentToStoreDate?.slice(0, 10) ?? "",
               testDate: existing.testDate?.slice(0, 10) ?? "",
               notes: existing.notes ?? "",
             };
             setDraft(currentDraft);
             setInitialDraft(currentDraft);
-            for (const [options, relation] of [
-              [statuses, existing.status],
-              [stores, existing.store],
-              [vacancies, existing.vacancy],
-            ] as const) {
-              if (
-                relation &&
-                !options.some((option) => option.id === relation.id)
-              ) {
-                options.push({
-                  id: relation.id,
-                  name: relation.name + " (inativo)",
-                });
-              }
-            }
           }
           setLookups({ statuses, stores, vacancies });
         }
