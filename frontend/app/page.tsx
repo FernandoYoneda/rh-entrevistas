@@ -50,7 +50,7 @@ function Dashboard({
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
   const [view, setView] = useState<
-    "dashboard" | "candidates" | "status" | "stores"
+    "dashboard" | "candidates" | "status" | "stores" | "vacancies"
   >("dashboard");
 
   useEffect(() => {
@@ -126,6 +126,7 @@ function Dashboard({
               ["candidates", "Candidatos"],
               ["status", "Status"],
               ["stores", "Lojas"],
+              ["vacancies", "Vagas"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -162,6 +163,12 @@ function Dashboard({
         <StatusManager token={token} onLogout={onLogout} onChanged={refresh} />
       ) : view === "stores" ? (
         <StoresManager token={token} onLogout={onLogout} onChanged={refresh} />
+      ) : view === "vacancies" ? (
+        <VacanciesManager
+          token={token}
+          onLogout={onLogout}
+          onChanged={refresh}
+        />
       ) : (
         <main className="min-w-0 flex-1 px-5 py-8 sm:px-8 lg:px-10">
           <header className="flex flex-wrap items-center justify-between gap-5">
@@ -944,6 +951,366 @@ function StoresManager({
                           setError("");
                         }}
                         aria-label={"Inativar loja " + item.name}
+                        className="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:opacity-60"
+                      >
+                        Inativar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <footer className="mt-10 text-xs text-slate-500">
+        Grupo Casa Bella · Recursos Humanos
+      </footer>
+    </main>
+  );
+}
+
+type VacancyItem = { id: number; name: string; isActive: boolean };
+
+function VacanciesManager({
+  token,
+  onLogout,
+  onChanged,
+}: {
+  token: string;
+  onLogout: () => void;
+  onChanged: () => void;
+}) {
+  const [items, setItems] = useState<VacancyItem[]>([]);
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState<VacancyItem | null>(null);
+  const [pendingInactive, setPendingInactive] = useState<VacancyItem | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+    async function load() {
+      try {
+        const result = await apiFetch<VacancyItem[]>("/vacancies", {
+          token,
+          signal: controller.signal,
+        });
+        if (!Array.isArray(result))
+          throw new Error("O servidor retornou uma lista de vagas inválida.");
+        if (!cancelled) setItems(result);
+      } catch (err) {
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) {
+          onLogout();
+          return;
+        }
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar as vagas.",
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [token, revision, onLogout]);
+
+  function reload() {
+    setLoading(true);
+    setError("");
+    setItems([]);
+    setRevision((value) => value + 1);
+  }
+
+  function cancelEdit() {
+    setEditing(null);
+    setName("");
+    setError("");
+  }
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving || loading) return;
+    const trimmed = name.trim();
+    setError("");
+    setSuccess("");
+    if (!trimmed) {
+      setError("Informe o nome da vaga.");
+      return;
+    }
+    if (editing && trimmed === editing.name) {
+      setError("Altere o nome da vaga ou clique em Cancelar edição.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const result = await apiFetch<VacancyItem>(
+        editing ? "/vacancies/" + editing.id : "/vacancies",
+        {
+          method: editing ? "PATCH" : "POST",
+          token,
+          body: JSON.stringify({ name: trimmed }),
+        },
+      );
+      setSuccess(
+        "Vaga " +
+          result.name +
+          (editing ? " atualizada com sucesso." : " cadastrada com sucesso."),
+      );
+      setEditing(null);
+      setName("");
+      reload();
+      onChanged();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onLogout();
+        return;
+      }
+      setError(
+        err instanceof Error ? err.message : "Não foi possível salvar a vaga.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function inactivate() {
+    if (!pendingInactive || saving || loading) return;
+    const selected = pendingInactive;
+    setSaving(true);
+    setError("");
+    setSuccess("");
+    try {
+      await apiFetch<VacancyItem>("/vacancies/" + selected.id, {
+        method: "DELETE",
+        token,
+      });
+      setPendingInactive(null);
+      if (editing?.id === selected.id) {
+        setEditing(null);
+        setName("");
+      }
+      setSuccess("Vaga " + selected.name + " inativada com sucesso.");
+      reload();
+      onChanged();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        onLogout();
+        return;
+      }
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível inativar a vaga.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const disabled = saving || loading;
+  const buttonClass =
+    "rounded-xl bg-[#005260] px-5 py-3 text-sm font-semibold text-white hover:bg-[#003e49] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#005260] disabled:opacity-60";
+  const secondaryClass =
+    "rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#005260] disabled:opacity-60";
+
+  return (
+    <main className="min-w-0 flex-1 px-5 py-8 sm:px-8 lg:px-10">
+      <header className="flex flex-wrap items-center justify-between gap-5">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#005260]">
+            Portal Casa Bella
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold">Vagas</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            Cadastre as funções que serão vinculadas aos candidatos.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setPendingInactive(null);
+            reload();
+          }}
+          disabled={disabled}
+          className={secondaryClass}
+        >
+          Atualizar lista
+        </button>
+      </header>
+
+      {success && (
+        <p
+          role="status"
+          className="mt-6 rounded-xl border border-[#005260]/15 bg-[#eaf4f1] p-4 text-sm text-[#005260]"
+        >
+          {success}
+        </p>
+      )}
+      {error && (
+        <p
+          role="alert"
+          className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+        >
+          {error}
+        </p>
+      )}
+
+      <form
+        onSubmit={save}
+        className="mt-7 rounded-2xl border border-[#005260]/10 bg-white p-6 shadow-sm"
+      >
+        <h2 className="text-lg font-semibold">
+          {editing ? "Editar vaga" : "Nova vaga"}
+        </h2>
+        <div className="mt-5 flex flex-wrap items-end gap-4">
+          <div className="min-w-0 flex-1 basis-64">
+            <label htmlFor="vacancy-name" className="text-sm font-medium">
+              Nome da vaga *
+            </label>
+            <input
+              id="vacancy-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={150}
+              required
+              disabled={disabled || !!pendingInactive}
+              placeholder="Ex.: Vendedor"
+              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-[#005260] focus:ring-2 focus:ring-[#005260]/15 disabled:opacity-60"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={disabled || !!pendingInactive}
+            className={buttonClass}
+          >
+            {saving
+              ? "Salvando..."
+              : editing
+                ? "Salvar alterações"
+                : "Cadastrar vaga"}
+          </button>
+          {editing && (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              disabled={disabled || !!pendingInactive}
+              className={secondaryClass}
+            >
+              Cancelar edição
+            </button>
+          )}
+        </div>
+      </form>
+
+      {pendingInactive && (
+        <section
+          aria-labelledby="inactive-title"
+          className="mt-6 rounded-2xl border border-[#e66b4e]/40 bg-[#fff7f3] p-6"
+        >
+          <h2 id="inactive-title" className="font-semibold">
+            Inativar a vaga {pendingInactive.name}?
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Ela deixará de aparecer nas opções de seleção e nos dados atuais dos
+            candidatos. Os vínculos anteriores e o histórico serão preservados.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => void inactivate()}
+              disabled={disabled}
+              className="rounded-xl bg-red-700 px-5 py-3 text-sm font-semibold text-white hover:bg-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:opacity-60"
+            >
+              {saving ? "Inativando..." : "Confirmar inativação"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingInactive(null)}
+              disabled={disabled}
+              className={secondaryClass}
+            >
+              Cancelar
+            </button>
+          </div>
+        </section>
+      )}
+
+      <div role="status" className="mt-6 text-sm text-slate-600">
+        {loading
+          ? "Carregando vagas..."
+          : items.length +
+            (items.length === 1 ? " vaga ativa" : " vagas ativas")}
+      </div>
+      {!loading && items.length === 0 && !error && (
+        <p className="mt-4 rounded-2xl border border-[#005260]/10 bg-white p-8 text-sm text-slate-500">
+          Nenhuma vaga ativa cadastrada.
+        </p>
+      )}
+      {!loading && items.length > 0 && (
+        <div
+          role="region"
+          aria-label="Vagas ativas"
+          tabIndex={0}
+          className="mt-4 overflow-x-auto rounded-2xl border border-[#005260]/10 bg-white shadow-sm focus-visible:outline-2 focus-visible:outline-[#005260]"
+        >
+          <table className="w-full min-w-[440px] text-left text-sm">
+            <caption className="sr-only">
+              Vagas disponíveis para os candidatos
+            </caption>
+            <thead className="bg-[#eaf4f1] text-[#005260]">
+              <tr>
+                <th scope="col" className="px-5 py-4">
+                  Nome
+                </th>
+                <th scope="col" className="px-5 py-4">
+                  Ações
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {items.map((item) => (
+                <tr key={item.id} className="hover:bg-slate-50">
+                  <th scope="row" className="px-5 py-4 font-medium">
+                    {item.name}
+                  </th>
+                  <td className="px-5 py-4">
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        disabled={disabled || !!pendingInactive}
+                        onClick={() => {
+                          setEditing(item);
+                          setName(item.name);
+                          setSuccess("");
+                          setError("");
+                        }}
+                        aria-label={"Editar vaga " + item.name}
+                        className="rounded-lg border border-[#005260]/25 px-3 py-2 font-semibold text-[#005260] hover:bg-[#eaf4f1] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#005260] disabled:opacity-60"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={disabled || !!pendingInactive}
+                        onClick={() => {
+                          setPendingInactive(item);
+                          setSuccess("");
+                          setError("");
+                        }}
+                        aria-label={"Inativar vaga " + item.name}
                         className="rounded-lg border border-red-200 px-3 py-2 font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700 disabled:opacity-60"
                       >
                         Inativar
