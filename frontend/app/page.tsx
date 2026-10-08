@@ -126,6 +126,444 @@ function DistributionBars({
   );
 }
 
+function PortalDesign() {
+  return (
+    <style jsx global>{`
+      .casabella-portal,
+      .casabella-login {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f5f7f8;
+        color: #172f36;
+      }
+      .casabella-portal {
+        padding-left: 250px;
+      }
+      .casabella-portal > main {
+        width: 100%;
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 32px 40px 40px;
+      }
+      .casabella-portal main h1 {
+        letter-spacing: -1px;
+        font-size: 32px;
+        line-height: 1.2;
+      }
+      .casabella-portal main h2 {
+        letter-spacing: -0.3px;
+      }
+      .casabella-portal main header {
+        margin-bottom: 28px;
+      }
+      .casabella-portal main header > div > p:first-child {
+        color: #657e83;
+        font-size: 11px;
+        letter-spacing: 1.8px;
+      }
+      .casabella-portal main .bg-white.rounded-2xl {
+        border-color: transparent;
+        border-radius: 20px;
+        box-shadow: 0 5px 24px #122d3505;
+      }
+      .casabella-portal main input:not([type="checkbox"]),
+      .casabella-portal main select,
+      .casabella-portal main textarea,
+      .casabella-login input:not([type="checkbox"]) {
+        background: #fcfdfd;
+        border-color: #e0e8e9;
+        border-radius: 10px;
+      }
+      .casabella-portal main input:focus,
+      .casabella-portal main select:focus,
+      .casabella-portal main textarea:focus,
+      .casabella-login input:focus {
+        border-color: #005260;
+      }
+      .casabella-portal main button:not(.underline) {
+        border-radius: 11px;
+      }
+      .casabella-portal main table {
+        font-size: 13px;
+      }
+      .casabella-portal main thead {
+        background: #f7f9fa;
+      }
+      .casabella-portal main th[scope="col"] {
+        color: #637980;
+        font-weight: 600;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+      .casabella-portal main tbody td {
+        padding-top: 19px;
+        padding-bottom: 19px;
+      }
+      .casabella-portal main tbody tr:hover {
+        background: #fafcfc;
+      }
+      .casabella-portal main footer {
+        color: #7c8e93;
+      }
+      .portal-metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .portal-distributions {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .portal-distributions [aria-hidden="true"] {
+        height: 6px;
+      }
+      .portal-distributions [aria-hidden="true"] > div:not([class*="e66b4e"]) {
+        background: #428b91;
+      }
+      .casabella-portal .portal-metrics article:first-child {
+        background: #005260;
+      }
+      .casabella-portal .portal-metrics article:first-child p {
+        color: #bdd9dd;
+      }
+      .casabella-portal .portal-metrics article:first-child p:nth-child(2) {
+        color: white;
+      }
+      .casabella-portal .portal-metrics article:nth-child(2) {
+        background: #fff7f2;
+        border-color: transparent;
+        border-top-width: 1px;
+      }
+      .portal-topbar {
+        min-height: 80px;
+        margin: 0 40px;
+        border-bottom: 1px solid #e6eced;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .portal-heading {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        min-width: 0;
+      }
+      .portal-heading > div {
+        margin-left: 0;
+      }
+      .portal-heading small {
+        font-size: 12px;
+        color: #637980;
+      }
+      .portal-heading p {
+        font-size: 12px;
+        color: #172f36;
+        margin-top: 3px;
+      }
+      .portal-top-user {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+      }
+      .portal-user-avatar {
+        background: #edf5f4;
+        color: #005260;
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        font-weight: 600;
+      }
+
+      .portal-sidebar button:focus-visible {
+        outline: 3px solid #e66b4e;
+        outline-offset: 3px;
+      }
+      .portal-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 250px;
+        overflow-y: auto;
+        z-index: 30;
+        background: #073b45;
+        padding: 30px 22px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+      }
+      .portal-sidebar-logo {
+        background: white;
+        border-radius: 14px;
+        overflow: hidden;
+        padding: 8px 10px;
+      }
+      .portal-sidebar-caption {
+        color: #9fbfc4;
+        letter-spacing: 1.8px;
+        font-size: 11px;
+        margin: 26px 10px;
+      }
+      .portal-sidebar nav {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .portal-sidebar nav button {
+        min-height: 46px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 13px 14px;
+        text-align: left;
+        border-radius: 12px;
+        color: #c6dadd;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .portal-sidebar nav button:hover {
+        background: #ffffff0c;
+      }
+      .portal-sidebar nav button[aria-current="page"] {
+        background: #dbece8;
+        color: #073b45;
+      }
+      .portal-sidebar nav button[aria-current="page"]::after {
+        content: "";
+        width: 6px;
+        height: 6px;
+        background: #e66b4e;
+        border-radius: 50%;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+      .portal-sidebar-account {
+        margin-top: auto;
+        border-top: 1px solid #ffffff12;
+        padding-top: 22px;
+      }
+      .portal-sidebar-account p {
+        font-size: 13px;
+      }
+      .portal-sidebar-account small {
+        display: block;
+        font-size: 11px;
+        color: #b6d5d8;
+        margin-top: 6px;
+        overflow-wrap: anywhere;
+      }
+      .portal-sidebar-account button {
+        border: 1px solid #ffffff30;
+        padding: 9px 14px;
+        margin-top: 16px;
+        border-radius: 9px;
+        font-size: 13px;
+      }
+      .casabella-login > div {
+        border: 0;
+        box-shadow: 0 14px 50px #073b4510;
+      }
+      .casabella-login aside {
+        background: #073b45;
+      }
+      .casabella-login section > img {
+        max-width: 260px;
+      }
+      .casabella-login h1,
+      .casabella-login h2 {
+        letter-spacing: -1px;
+      }
+      @media (max-width: 1000px) {
+        .portal-metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 900px) {
+        .portal-distributions {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
+        .casabella-portal > main {
+          padding: 26px 20px;
+        }
+        .casabella-portal main h1 {
+          font-size: 28px;
+        }
+        .portal-topbar {
+          margin: 0 20px;
+        }
+
+        .portal-top-user > span:last-child {
+          display: none;
+        }
+        .casabella-portal main input:not([type="checkbox"]),
+        .casabella-portal main select,
+        .casabella-portal main textarea,
+        .casabella-login input:not([type="checkbox"]) {
+          font-size: 16px;
+        }
+      }
+      @media (max-width: 800px) {
+        .casabella-portal {
+          padding-left: 0;
+        }
+        .portal-sidebar {
+          position: relative;
+          width: 100%;
+          padding: 20px;
+          overflow: visible;
+        }
+        .portal-sidebar-logo {
+          width: 175px;
+        }
+        .portal-sidebar-caption {
+          margin: 18px 0;
+        }
+        .portal-sidebar nav {
+          flex-direction: row;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .portal-sidebar nav button {
+          width: auto;
+          padding: 10px 12px;
+        }
+        .portal-sidebar nav button[aria-current="page"]::after {
+          display: none;
+        }
+        .portal-sidebar-account {
+          margin-top: 20px;
+          display: flex;
+          gap: 12px;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .portal-sidebar-account small {
+          margin-top: 0;
+        }
+        .portal-sidebar-account button {
+          margin: 0 0 0 auto;
+        }
+      }
+
+      .casabella-portal > main {
+        max-width: none;
+        margin: 0;
+        padding: 22px 24px 28px;
+      }
+      .portal-topbar {
+        min-height: 64px;
+        margin: 0 24px;
+      }
+      .casabella-portal main header {
+        margin-bottom: 18px;
+      }
+      .casabella-portal main > .mt-7,
+      .casabella-portal main > .mt-6 {
+        margin-top: 20px;
+      }
+      .casabella-portal main .bg-white.rounded-2xl:not(.overflow-x-auto) {
+        padding: 20px;
+        border-radius: 16px;
+      }
+      .casabella-portal main > .overflow-x-auto.rounded-2xl {
+        border-radius: 16px;
+      }
+      .casabella-portal main form > .mt-5 {
+        margin-top: 16px;
+      }
+      .casabella-portal main form .grid {
+        gap: 16px;
+      }
+      .casabella-portal main form.space-y-7 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 20px;
+      }
+      .casabella-portal main tbody td,
+      .casabella-portal main tbody th[scope="row"] {
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+      .casabella-portal main th[scope="col"] {
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
+      .casabella-portal main footer {
+        margin-top: 26px;
+      }
+      .casabella-portal .portal-distributions {
+        margin-top: 20px;
+        gap: 24px;
+      }
+      .casabella-portal .portal-metrics {
+        gap: 14px;
+      }
+      .casabella-portal .portal-metrics article p:nth-child(2) {
+        margin-top: 12px;
+      }
+      .casabella-portal .portal-metrics article p:nth-child(3) {
+        margin-top: 10px;
+      }
+      @media (max-width: 640px) {
+        .casabella-portal > main {
+          padding: 20px 16px 24px;
+        }
+        .portal-topbar {
+          margin: 0 16px;
+        }
+        .casabella-portal main .bg-white.rounded-2xl:not(.overflow-x-auto) {
+          padding: 16px;
+        }
+      }
+    `}</style>
+  );
+}
+
+function PortalNavIcon({ name }: { name: string }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {name === "dashboard" ? (
+        <>
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+        </>
+      ) : name === "candidates" ? (
+        <>
+          <circle cx="9" cy="8" r="3" />
+          <path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M18 15a5 5 0 0 1 3 4v2" />
+        </>
+      ) : name === "status" ? (
+        <>
+          <path d="m3 6 2 2 3-3M12 7h9M3 13h5M12 13h9M3 19h5M12 19h9" />
+        </>
+      ) : name === "stores" ? (
+        <>
+          <path d="M3 10V7l2-4h14l2 4v3M4 10v11h16V10M9 21v-7h6v7M3 10a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0" />
+        </>
+      ) : (
+        <>
+          <rect x="3" y="7" width="18" height="14" rx="2" />
+          <path d="M8 7V3h8v4M3 12a24 24 0 0 0 18 0M12 12v4" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 function Dashboard({
   user,
   token,
@@ -246,9 +684,10 @@ function Dashboard({
     : [];
 
   return (
-    <div className="min-h-screen bg-[#f4f7f6] text-[#263c40] lg:flex">
-      <aside className="flex shrink-0 flex-col bg-[#005260] px-6 py-6 text-white lg:min-h-screen lg:w-64 lg:py-8">
-        <div className="w-full max-w-52 overflow-hidden rounded-xl bg-white">
+    <div className="casabella-portal min-h-screen">
+      <PortalDesign />
+      <aside id="portal-navigation" className="portal-sidebar">
+        <div className="portal-sidebar-logo">
           <Image
             src="/logo-casabella-escrita.png"
             alt="Grupo Casa Bella fragrâncias"
@@ -258,10 +697,8 @@ function Dashboard({
             priority
           />
         </div>
-        <p className="mt-6 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">
-          Recursos Humanos
-        </p>
-        <nav aria-label="Menu principal" className="mt-5 space-y-2">
+        <p className="portal-sidebar-caption">RECURSOS HUMANOS</p>
+        <nav aria-label="Menu principal">
           {(
             [
               ["dashboard", "Visão geral"],
@@ -279,29 +716,45 @@ function Dashboard({
                 setView(key);
               }}
               aria-current={view === key ? "page" : undefined}
-              className={
-                "block w-full rounded-xl border-l-4 px-4 py-3 text-left font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white " +
-                (view === key
-                  ? "border-[#e66b4e] bg-white/10"
-                  : "border-transparent text-white/80 hover:bg-white/5")
-              }
             >
+              <PortalNavIcon name={key} />
               {label}
             </button>
           ))}
         </nav>
-        <div className="mt-8 border-t border-white/15 pt-5 lg:mt-auto">
-          <p className="break-words font-medium">{user.name}</p>
-          <p className="mt-1 break-all text-xs text-white/70">{user.email}</p>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="mt-4 rounded-lg border border-white/30 px-4 py-2 text-sm hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
+        <div className="portal-sidebar-account">
+          <p>{user.name}</p>
+          <small>{user.email}</small>
+          <button type="button" onClick={onLogout}>
             Sair
           </button>
         </div>
       </aside>
+      <header className="portal-topbar">
+        <div className="portal-heading">
+          <div>
+            <small>Portal Casa Bella</small>
+            <p>
+              {
+                {
+                  dashboard: "Visão geral",
+                  candidates: "Candidatos",
+                  status: "Status",
+                  stores: "Lojas",
+                  vacancies: "Vagas",
+                }[view]
+              }
+            </p>
+          </div>
+        </div>
+        <div className="portal-top-user">
+          <span className="portal-user-avatar" aria-hidden="true">
+            {user.name.slice(0, 2).toLocaleUpperCase("pt-BR")}
+          </span>
+          <span>{user.name}</span>
+        </div>
+      </header>
+
       {view === "candidates" ? (
         <Candidates
           token={token}
@@ -484,7 +937,7 @@ function Dashboard({
             <>
               <section
                 aria-label="Indicadores"
-                className="mt-4 grid gap-4 sm:grid-cols-2 2xl:grid-cols-4"
+                className="portal-metrics mt-4 grid gap-4"
               >
                 {metrics.map(([label, value, context], index) => (
                   <article
@@ -514,7 +967,7 @@ function Dashboard({
                 <p className="mt-2 text-sm text-slate-500">
                   Os números das barras indicam candidatos.
                 </p>
-                <div className="mt-7 grid gap-8 xl:grid-cols-3">
+                <div className="portal-distributions mt-7 grid gap-8">
                   <DistributionBars
                     title="Por status"
                     groups={dashboardGroups(
@@ -3059,7 +3512,8 @@ export default function Home() {
     "w-full rounded-xl bg-[#005260] px-4 py-3.5 font-semibold text-white transition hover:bg-[#003e49] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#005260] disabled:cursor-wait disabled:opacity-60";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f4f7f6] px-5 py-10 text-[#263c40] sm:px-8">
+    <main className="casabella-login flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
+      <PortalDesign />
       <div className="grid w-full max-w-5xl overflow-hidden rounded-3xl border border-[#005260]/10 bg-white shadow-xl lg:grid-cols-2">
         <aside className="relative hidden flex-col justify-between overflow-hidden bg-[#005260] p-12 text-white lg:flex">
           <div
