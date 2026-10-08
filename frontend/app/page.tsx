@@ -23,6 +23,7 @@ type AuthenticatedUser = {
 
 type Group = { id: number; name: string; total: number };
 type DashboardData = {
+  filters: { startDate: string | null; endDate: string | null };
   summary: {
     totalCandidates: number;
     withStatus: number;
@@ -138,7 +139,14 @@ function Dashboard({
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const [period, setPeriod] = useState<"all" | "month">("all");
+  const [period, setPeriod] = useState<"all" | "month" | "custom">("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [periodError, setPeriodError] = useState("");
+  const [appliedPeriod, setAppliedPeriod] = useState<
+    | { kind: "all" | "month" }
+    | { kind: "custom"; startDate: string; endDate: string }
+  >({ kind: "all" });
   const [agendaCandidateId, setAgendaCandidateId] = useState<number | null>(
     null,
   );
@@ -153,7 +161,14 @@ function Dashboard({
     async function load() {
       try {
         const result = await apiFetch<DashboardData>(
-          "/dashboard" + dashboardPeriodQuery(period),
+          "/dashboard" +
+            (appliedPeriod.kind === "custom"
+              ? "?" +
+                new URLSearchParams({
+                  startDate: appliedPeriod.startDate,
+                  endDate: appliedPeriod.endDate,
+                }).toString()
+              : dashboardPeriodQuery(appliedPeriod.kind)),
           {
             token,
             signal: controller.signal,
@@ -190,7 +205,26 @@ function Dashboard({
       cancelled = true;
       controller.abort();
     };
-  }, [token, revision, onLogout, period]);
+  }, [token, revision, onLogout, appliedPeriod]);
+
+  function applyCustomPeriod(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!startDate || !endDate) {
+      setPeriodError("Informe a data inicial e a data final.");
+      return;
+    }
+    if (startDate > endDate) {
+      setPeriodError(
+        "A data final deve ser igual ou posterior à data inicial.",
+      );
+      return;
+    }
+    setPeriodError("");
+    setError("");
+    setData(null);
+    setBusy(true);
+    setAppliedPeriod({ kind: "custom", startDate, endDate });
+  }
 
   function refresh() {
     setError("");
@@ -317,16 +351,25 @@ function Dashboard({
                 id="dashboard-period"
                 value={period}
                 onChange={(event) => {
-                  setPeriod(event.target.value as "all" | "month");
-                  setData(null);
-                  setError("");
-                  setBusy(true);
+                  const selected = event.target.value as
+                    | "all"
+                    | "month"
+                    | "custom";
+                  setPeriod(selected);
+                  setPeriodError("");
+                  if (selected !== "custom") {
+                    setAppliedPeriod({ kind: selected });
+                    setData(null);
+                    setError("");
+                    setBusy(true);
+                  }
                 }}
                 disabled={busy}
                 className="mt-2 block rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#005260] focus:ring-2 focus:ring-[#005260]/15 disabled:opacity-60"
               >
                 <option value="all">Todos os períodos</option>
                 <option value="month">Este mês</option>
+                <option value="custom">Período personalizado</option>
               </select>
             </div>
             {data && (
@@ -336,6 +379,88 @@ function Dashboard({
               </p>
             )}
           </div>
+          {period === "custom" && (
+            <form
+              onSubmit={applyCustomPeriod}
+              className="mt-4 rounded-xl border border-slate-200 bg-white p-5"
+            >
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="min-w-0 flex-1 sm:flex-none">
+                  <label
+                    htmlFor="dashboard-start-date"
+                    className="block text-sm font-medium"
+                  >
+                    Data inicial
+                  </label>
+                  <input
+                    id="dashboard-start-date"
+                    type="date"
+                    required
+                    value={startDate}
+                    onChange={(event) => {
+                      setStartDate(event.target.value);
+                      setPeriodError("");
+                    }}
+                    disabled={busy}
+                    aria-describedby="dashboard-custom-hint"
+                    aria-invalid={periodError ? true : undefined}
+                    className="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#005260] focus:ring-2 focus:ring-[#005260]/15 disabled:opacity-60"
+                  />
+                </div>
+                <div className="min-w-0 flex-1 sm:flex-none">
+                  <label
+                    htmlFor="dashboard-end-date"
+                    className="block text-sm font-medium"
+                  >
+                    Data final
+                  </label>
+                  <input
+                    id="dashboard-end-date"
+                    type="date"
+                    required
+                    value={endDate}
+                    onChange={(event) => {
+                      setEndDate(event.target.value);
+                      setPeriodError("");
+                    }}
+                    disabled={busy}
+                    aria-describedby="dashboard-custom-hint"
+                    aria-invalid={periodError ? true : undefined}
+                    className="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#005260] focus:ring-2 focus:ring-[#005260]/15 disabled:opacity-60"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="rounded-xl bg-[#005260] px-5 py-3 text-sm font-semibold text-white hover:bg-[#003e49] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#005260] disabled:opacity-60"
+                >
+                  Aplicar período
+                </button>
+              </div>
+              <p
+                id="dashboard-custom-hint"
+                className="mt-3 text-xs text-slate-500"
+              >
+                Selecione as datas das entrevistas e clique em Aplicar período.
+                As duas datas estão incluídas na consulta.
+              </p>
+              {periodError && (
+                <p role="alert" className="mt-3 text-sm text-red-700">
+                  {periodError}
+                </p>
+              )}
+            </form>
+          )}
+          {data && (
+            <p className="mt-4 text-sm font-medium text-[#005260]">
+              Período aplicado:{" "}
+              {data.filters.startDate && data.filters.endDate
+                ? formatInterviewDate(data.filters.startDate) +
+                  " a " +
+                  formatInterviewDate(data.filters.endDate)
+                : "Todos os períodos"}
+            </p>
+          )}
           <p className="mt-3 text-xs leading-5 text-slate-500">
             Todos os indicadores e gráficos consideram os candidatos
             entrevistados no período selecionado. As datas de teste representam
